@@ -1,81 +1,68 @@
-const { default: mongoose } = require('mongoose');
-const internModel = require('../models/internModel')
-// const collegeModel = require('../models/collegeModel')
+const internModel = require('../models/internModel');
+const collegeModel = require('../models/collegeModel');
 
-const isValid = (value) => {
-    if (typeof value === 'undefined' || value === null) return false
-    if (typeof value === 'string' && value.trim().length === 0) return false
-    return true;
-}
+const { isValid, isValidRequestBody } = require('../utils/validators');
 
-const isValidRequestBody = (requestBody) => {
-    if (Object.keys(requestBody).length) return true
-    return false;
-}
-
-const isValidObjectId = (ObjectId) => {
-    return mongoose.Types.ObjectId.isValid(ObjectId);
-}
 
 const createIntern = async (req, res) => {
- try { 
-      const internDetails = req.body;
-    if (!isValidRequestBody(internDetails)) {
-        return res.status(400).send({ status: false, message: 'Invalid request parameters. Please provide intern details' })
-    }
+    try {
+        res.setHeader('Access-Control-Allow-Origin', '*')
+        const internDetails = req.body;
+        if (!isValidRequestBody(internDetails)) {
+            return res.status(400).send({ status: false, message: 'Invalid request parameters. Please provide intern details' })
+        }
 
-    const { name, email, mobile, collegeId } = req.body;
+        const { name, email, mobile, collegeName } = req.body;
 
-    if (!isValid(name)) {
-        return res.status(400).send({ status: false, message: 'Nmae is required' })
-    }
+        if (!isValid(name)) {
+            return res.status(400).send({ status: false, message: 'Nmae is required' })
+        }
 
-    if (!isValid(email)) {
-        return res.status(400).send({ status: false, message: 'Email is required' })
-    }
-    if(!(/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email))){
-        return res.status(400).send({ status: false, message: 'Email should be valid email' })
+        if (!isValid(email)) {
+            return res.status(400).send({ status: false, message: 'Email is required' })
+        }
+        if (!(/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email))) {
+            return res.status(400).send({ status: false, message: 'Email should be valid email' })
 
-    }
-    const emailAlreadyUsed = await internModel.findOne({email})
-    if(emailAlreadyUsed){
-        return res.status(400).send({ status: false, message: `${email} is already registered` })
+        }
+        const emailAlreadyUsed = await internModel.findOne({ email })
+        if (emailAlreadyUsed) {
+            return res.status(400).send({ status: false, message: `${email} is already registered` })
 
-    }
+        }
+        if (!isValid(mobile)) {
+            return res.status(400).send({ status: false, message: 'Mobile number is required' })
+        }
+        if (!(/^(\+\d{1,3}[- ]?)?\d{10}$/.test(mobile))) {
+            return res.status(400).send({ status: false, message: 'Mobile number should be valid mobile number' })
 
-    if (!isValid(mobile)) {
-        return res.status(400).send({ status: false, message: 'Mobile number is required' })
-    }
-    if(!(/^(\+\d{1,3}[- ]?)?\d{10}$/.test(mobile))){
-        return res.status(400).send({ status: false, message: 'Mobile number should be valid mobile number' })
+        }
+        const mobileAlreadyUsed = await internModel.findOne({ mobile })
+        if (mobileAlreadyUsed) {
+            return res.status(400).send({ status: false, message: `${mobile} number already registered` })
+        }
+        if (!isValid(collegeName)) {
+            return res.status(400).send({ status: false, message: 'collegeName is required' });
+        }
 
-    }
-    const mobileAlreadyUsed = await internModel.findOne({mobile})
-    if(mobileAlreadyUsed){
-        return res.status(400).send({ status: false, message: `${mobile} number already registered` })
-    }
-    if(!isValid(collegeId)) {
-        return res.status(400).send({ status: false, message: 'CollegeId is required' });
-    }
-    // const collegeAlreadyUsed = await collegeModel.find({collegeId})
-    // if(!(collegeAlreadyUsed == collegeId)){
-    //     return res.status(400).send({ status: false, message: `This ${collegeId} doesn't exist ` })
-    // }
+        let college = await collegeModel.findOne({ collegeName, isDeleted: false })
+        
+    
+        if (college.name != collegeName) {
+            return res.status(400).send({ status: false, message: `This college ${collegeName} doesn't exist ` })
+        }
 
-    if(!isValidObjectId(collegeId)) {
-        return res.status(400).send({ status: false, message: `${collegeId} is not a valid ObjecId`});
-
+        const internData = {
+            name: name,
+            email: email,
+            mobile: mobile,
+            collegeId: college._id
+        };
+        const newIntern = await internModel.create(internData);
+        res.status(201).send({ status: true, message: 'Intern created successsfully', data: newIntern })
+    } catch (error) {
+        return res.status(500).send({ status: false, message: error.message });
     }
-
-    const internData = {name, email, mobile, collegeId};
-    const newIntern = await internModel.create(internData);
-    res.status(201).send({status: true, message: 'Intern created successsfully', data: newIntern})
-}catch(error){
-    return res.status(500).send({
-        status: false,
-        message: error.message
-    });
 }
-}
 
-    module.exports.createIntern = createIntern;
+module.exports.createIntern = createIntern;
